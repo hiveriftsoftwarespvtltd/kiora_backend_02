@@ -35,13 +35,13 @@ export class ProductsService implements OnModuleInit {
       let updatedCount = 0;
       for (const prod of productsToUpdate) {
         let changed = false;
-        if (prod.img && prod.img.endsWith('.png')) {
+        if (prod.img && prod.img.endsWith('.png') && !prod.img.toLowerCase().includes('upload-')) {
           prod.img = prod.img.replace(/\.png$/i, '.webp');
           changed = true;
         }
         if (prod.imgs && prod.imgs.length > 0) {
           const originalImgsStr = JSON.stringify(prod.imgs);
-          prod.imgs = prod.imgs.map(img => img.endsWith('.png') ? img.replace(/\.png$/i, '.webp') : img);
+          prod.imgs = prod.imgs.map(img => (img.endsWith('.png') && !img.toLowerCase().includes('upload-')) ? img.replace(/\.png$/i, '.webp') : img);
           if (JSON.stringify(prod.imgs) !== originalImgsStr) {
             changed = true;
           }
@@ -56,6 +56,32 @@ export class ProductsService implements OnModuleInit {
       }
     } catch (migrationErr) {
       console.error('Migration .png -> .webp error:', migrationErr);
+    }
+
+    // Migrate old scentFamily strings to new ones
+    try {
+      const oldToNewMap = {
+        'floral': 'floral-powdery-fresh',
+        'oriental': 'sweet-spicy-amber',
+        'fresh': 'citrus-aquatic-mint',
+        'woody': 'woody-amber-clean-spice',
+        'fruity': 'fruity-spicy-woody',
+        'gourmand': 'warm-spicy-gourmand'
+      };
+      const allProducts = await this.productModel.find().exec();
+      let migratedCount = 0;
+      for (const prod of allProducts) {
+        if (oldToNewMap[prod.scentFamily]) {
+          prod.scentFamily = oldToNewMap[prod.scentFamily];
+          await prod.save();
+          migratedCount++;
+        }
+      }
+      if (migratedCount > 0) {
+        console.log(`🌸 Migrated ${migratedCount} products to new Scent Families.`);
+      }
+    } catch (scentMigrationErr) {
+      console.error('Migration old scentFamily to new error:', scentMigrationErr);
     }
 
     // Seed default products if empty
@@ -84,7 +110,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 7999, stock: 15, sku: 'KOR-0001-100' }
           ],
           notes: { top: ['Rose', 'Bergamot'], heart: ['Jasmine', 'Iris'], base: ['Sandalwood', 'Musk'] },
-          scentFamily: 'floral',
+          scentFamily: 'floral-powdery-fresh',
           gender: 'women',
           concentration: 'Eau de Parfum',
           rating: 4.8,
@@ -123,7 +149,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 13999, stock: 10, sku: 'KOR-0002-100' }
           ],
           notes: { top: ['Saffron', 'Pepper'], heart: ['Oud', 'Rose'], base: ['Amber', 'Vetiver'] },
-          scentFamily: 'oriental',
+          scentFamily: 'woody-amber-clean-spice',
           gender: 'men',
           concentration: 'Extrait de Parfum',
           rating: 4.9,
@@ -163,7 +189,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 5999, stock: 25, sku: 'KOR-0003-100' }
           ],
           notes: { top: ['Peach', 'Freesia'], heart: ['Peony', 'Lotus'], base: ['White Musk', 'Cedar'] },
-          scentFamily: 'floral',
+          scentFamily: 'fruity-floral-gourmand',
           gender: 'women',
           concentration: 'Eau de Toilette',
           rating: 4.6,
@@ -202,7 +228,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 9999, stock: 20, sku: 'KOR-0004-100' }
           ],
           notes: { top: ['Black Currant', 'Bergamot'], heart: ['Patchouli', 'Black Rose'], base: ['Dark Amber', 'Vanilla'] },
-          scentFamily: 'oriental',
+          scentFamily: 'fruity-smoky-woody',
           gender: 'unisex',
           concentration: 'Eau de Parfum',
           rating: 4.7,
@@ -242,7 +268,7 @@ export class ProductsService implements OnModuleInit {
             { size: '150ml', price: 6999, stock: 40, sku: 'KOR-0005-150' }
           ],
           notes: { top: ['Sea Salt', 'Lime', 'Grapefruit'], heart: ['Aquatic', 'Driftwood'], base: ['Cedarwood', 'Vetiver'] },
-          scentFamily: 'fresh',
+          scentFamily: 'citrus-aquatic-mint',
           gender: 'men',
           concentration: 'Eau de Toilette',
           rating: 4.5,
@@ -281,7 +307,7 @@ export class ProductsService implements OnModuleInit {
             { size: '50ml', price: 13999, stock: 8, sku: 'KOR-0006-50' }
           ],
           notes: { top: ['Frankincense', 'Cardamom'], heart: ['Oud', 'Rose', 'Saffron'], base: ['Labdanum', 'Leather'] },
-          scentFamily: 'oriental',
+          scentFamily: 'sweet-spicy-amber',
           gender: 'unisex',
           concentration: 'Extrait de Parfum',
           rating: 5.0,
@@ -321,7 +347,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 4299, stock: 40, sku: 'KOR-0007-100' }
           ],
           notes: { top: ['Lemon', 'Neroli', 'Yuzu'], heart: ['White Flowers', 'Green Tea'], base: ['Musk', 'Vetiver'] },
-          scentFamily: 'fresh',
+          scentFamily: 'citrus-aquatic-mint',
           gender: 'women',
           concentration: 'Eau de Toilette',
           rating: 4.4,
@@ -360,7 +386,7 @@ export class ProductsService implements OnModuleInit {
             { size: '100ml', price: 8999, stock: 60, sku: 'KOR-0008-100' }
           ],
           notes: { top: ['Orange', 'Cinnamon'], heart: ['Amber', 'Benzoin', 'Labdanum'], base: ['Tonka Bean', 'Vanilla'] },
-          scentFamily: 'oriental',
+          scentFamily: 'warm-spicy-gourmand',
           gender: 'men',
           concentration: 'Eau de Parfum',
           rating: 4.6,
