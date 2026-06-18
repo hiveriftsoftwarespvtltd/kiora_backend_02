@@ -44,6 +44,15 @@ export class Order extends Document {
 
   @Prop({ type: Object, default: null })
   billingAddress: any; // complete billing address details with ID
+
+  @Prop({ default: '' })
+  razorpayOrderId: string;
+
+  @Prop({ default: '' })
+  razorpayPaymentId: string;
+
+  @Prop({ default: '' })
+  razorpaySignature: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

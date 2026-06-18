@@ -49,4 +49,39 @@ export class OrdersController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ success: false, message: err.message });
     }
   }
+
+  // ─── Razorpay: Create Order ────────────────────────────────────────────────
+  // Called BEFORE showing the Razorpay modal on the frontend.
+  // Returns: { success, razorpay_order_id, amount, currency, key_id }
+  @Post('razorpay/create-order')
+  async razorpayCreateOrder(@Body() body: { amount: number }, @Res() res: Response) {
+    try {
+      const rzpOrder = await this.ordersService.createRazorpayOrder(body.amount);
+      return res.status(HttpStatus.OK).json({
+        success: true,
+        razorpay_order_id: rzpOrder.id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        key_id: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (err) {
+      console.error('❌ Razorpay create-order error:', err);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ success: false, message: err.message });
+    }
+  }
+
+  // ─── Razorpay: Verify Payment & Save Order ────────────────────────────────
+  // Called AFTER Razorpay modal payment success callback.
+  // Validates HMAC-SHA256 signature, then saves verified order to MongoDB.
+  @Post('razorpay/verify-payment')
+  async razorpayVerifyPayment(@Body() body: any, @Res() res: Response) {
+    try {
+      const order = await this.ordersService.verifyAndSaveOrder(body);
+      return res.status(HttpStatus.OK).json({ success: true, orderId: order.id });
+    } catch (err) {
+      console.error('❌ Razorpay verify-payment error:', err);
+      const status = err.status === 400 ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+      return res.status(status).json({ success: false, message: err.message });
+    }
+  }
 }

@@ -1,9 +1,11 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Order } from '../../schemas/order.schema';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
+import Razorpay from 'razorpay';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -196,5 +198,93 @@ export class OrdersService implements OnModuleInit {
     } catch (err) {
       console.error('❌ Failed to dispatch SMTP order confirmation email:', err);
     }
+  }
+
+  // ─── Razorpay: Create Order ────────────────────────────────────────────────
+  async createRazorpayOrder(amountInRupees: number): Promise<any> {
+    const razorpay = new Razorpay({
+      key_id: this.configService.get<string>('RAZORPAY_KEY_ID'),
+      key_secret: this.configService.get<string>('RAZORPAY_KEY_SECRET'),
+    });
+
+    const options = {
+      amount: Math.round(amountInRupees * 100), // convert ₹ to paise
+      currency: 'INR',
+      receipt: `receipt_${Date.now()}`,
+      payment_capture: 1, // auto capture
+    };
+
+    const order = await razorpay.orders.create(options);
+    console.log(`💳 Razorpay order created: ${order.id} for ₹${amountInRupees}`);
+    return order;
+  }
+
+  // ─── Razorpay: Verify Signature & Save Order ──────────────────────────────
+  async verifyAndSaveOrder(payload: any): Promise<Order> {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      orderData,
+    } = payload;
+
+    // 1. Verify HMAC-SHA256 signature
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || '';
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      console.error('❌ Razorpay signature mismatch! Possible tampered request.');
+      throw new BadRequestException('Payment verification failed. Invalid signature.');
+    }
+
+    console.log(`✅ Razorpay payment signature verified for ${razorpay_payment_id}`);
+
+    // 2. Build and save the order with payment='paid'
+    const orders = await this.findAll();
+    const orderNum = 2400 + orders.length + 1;
+    const orderId = `KOR-${orderNum}`;
+
+    const dateStr = new Date().toLocaleString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+
+    const shipping = orderData.shippingAddress;
+    const fullAddress = shipping
+      ? `${shipping.address1}${shipping.address2 ? ', ' + shipping.address2 : ''}, ${shipping.city}, ${shipping.state} - ${shipping.pincode}`
+      : (orderData.address1
+          ? `${orderData.address1}, ${orderData.city}, ${orderData.state} - ${orderData.pincode}`
+          : orderData.address || 'Address not specified');
+
+    const savedOrder = new this.orderModel({
+      id: orderId,
+      customerId: orderData.customerId || '',
+      customer: orderData.customer || 'Guest Customer',
+      email: orderData.email.toLowerCase(),
+      date: dateStr,
+      items: parseInt(orderData.itemsCount) || 1,
+      itemsDetails: orderData.items || [],
+      total: parseInt(orderData.total) || 0,
+      status: 'pending',
+      payment: 'paid',  // ← Razorpay payment confirmed
+      city: orderData.city || (shipping ? shipping.city : ''),
+      address: fullAddress,
+      shippingAddress: orderData.shippingAddress || null,
+      billingAddress: orderData.billingAddress || null,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+    });
+
+    const newOrder = await savedOrder.save();
+
+    // 3. Fire email confirmation
+    this.sendOrderEmail(newOrder, orderData.paymentMethod || 'razorpay');
+
+    return newOrder;
   }
 }
