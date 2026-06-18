@@ -33,6 +33,8 @@ export class UploadService {
     fs.writeFileSync(backendDestPath, buffer);
     console.log(`📸 Image saved to backend storage: ${backendDestPath}`);
 
-    return `images/${uniqueName}`;
+    const baseUrl = process.env.BACKEND_URL || 'http://localhost:8009';
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return `${cleanBaseUrl}/images/${uniqueName}`;
   }
 }
