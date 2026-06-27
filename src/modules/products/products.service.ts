@@ -84,6 +84,23 @@ export class ProductsService implements OnModuleInit {
       console.error('Migration old scentFamily to new error:', scentMigrationErr);
     }
 
+    // Migrate products with category 'unisex' or 'oud' to 'men'
+    try {
+      const updateUnisex = await this.productModel.updateMany(
+        { category: 'unisex' },
+        { $set: { category: 'men', gender: 'men' } }
+      ).exec();
+      const updateOud = await this.productModel.updateMany(
+        { category: 'oud' },
+        { $set: { category: 'men' } }
+      ).exec();
+      if (updateUnisex.modifiedCount > 0 || updateOud.modifiedCount > 0) {
+        console.log(`🧹 Migrated categories: ${updateUnisex.modifiedCount} unisex, ${updateOud.modifiedCount} oud products to men.`);
+      }
+    } catch (migrationErr) {
+      console.error('Migration category update error:', migrationErr);
+    }
+
     // Seed default products if empty
     const count = await this.productModel.countDocuments();
     if (count === 0) {
@@ -215,7 +232,7 @@ export class ProductsService implements OnModuleInit {
           brand: 'KIORA',
           slug: 'noir-absolu',
           subtitle: 'Mysterious, sensual, unforgettable',
-          category: 'unisex',
+          category: 'men',
           status: 'active',
           isFeatured: true,
           price: 5999,
@@ -229,7 +246,7 @@ export class ProductsService implements OnModuleInit {
           ],
           notes: { top: ['Black Currant', 'Bergamot'], heart: ['Patchouli', 'Black Rose'], base: ['Dark Amber', 'Vanilla'] },
           scentFamily: 'fruity-smoky-woody',
-          gender: 'unisex',
+          gender: 'men',
           concentration: 'Eau de Parfum',
           rating: 4.7,
           reviews: 156,
@@ -294,7 +311,7 @@ export class ProductsService implements OnModuleInit {
           brand: 'KIORA',
           slug: 'velvet-oud',
           subtitle: 'Warm oriental luxury',
-          category: 'unisex',
+          category: 'men',
           status: 'active',
           isFeatured: true,
           price: 8999,
@@ -308,7 +325,7 @@ export class ProductsService implements OnModuleInit {
           ],
           notes: { top: ['Frankincense', 'Cardamom'], heart: ['Oud', 'Rose', 'Saffron'], base: ['Labdanum', 'Leather'] },
           scentFamily: 'sweet-spicy-amber',
-          gender: 'unisex',
+          gender: 'men',
           concentration: 'Extrait de Parfum',
           rating: 5.0,
           reviews: 43,

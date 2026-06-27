@@ -85,6 +85,8 @@ export class OrdersService implements OnModuleInit {
       items: parseInt(payload.itemsCount) || 1,
       itemsDetails: payload.items || [],
       total: calculatedTotal,
+      discount: parseInt(payload.discount) || 0,
+      promoCode: payload.promoCode || '',
       status: 'pending',
       payment: payload.paymentMethod === 'cod' ? 'pending' : 'paid',
       city: payload.city || (shipping ? shipping.city : ''),
@@ -168,6 +170,12 @@ export class OrdersService implements OnModuleInit {
               ${itemsRows}
             </tbody>
             <tfoot>
+              ${(order as any).discount > 0 ? `
+              <tr style="color: #27AE60;">
+                <td colspan="2" style="padding: 5px 12px 0px; font-size: 13px; font-weight: bold;">Discount (${(order as any).promoCode || 'Promotion'}):</td>
+                <td style="padding: 5px 12px 0px; font-size: 13px; font-weight: bold; text-align: right;">-₹${(order as any).discount.toLocaleString('en-IN')}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td colspan="2" style="padding: 15px 12px 5px; font-size: 14px; font-weight: bold; color: #1A1208;">Grand Total:</td>
                 <td style="padding: 15px 12px 5px; font-size: 16px; font-weight: bold; color: #8B6914; text-align: right;">₹${order.total.toLocaleString('en-IN')}</td>

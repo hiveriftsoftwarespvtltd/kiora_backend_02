@@ -12,9 +12,6 @@ export class Category extends Document {
   @Prop({ required: true, unique: true })
   slug: string;
 
-  @Prop({ default: '🌸' })
-  emoji: string;
-
   @Prop({ default: '' })
   img: string;
 

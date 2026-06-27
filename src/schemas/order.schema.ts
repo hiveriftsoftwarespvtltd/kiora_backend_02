@@ -53,6 +53,12 @@ export class Order extends Document {
 
   @Prop({ default: '' })
   razorpaySignature: string;
+
+  @Prop({ default: 0 })
+  discount: number;
+
+  @Prop({ default: '' })
+  promoCode: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
